@@ -1,21 +1,23 @@
-
 #ignore deprection warnings:
 import warnings
 warnings.simplefilter("ignore", category=FutureWarning) 
 
 from aif360.algorithms.preprocessing.optim_preproc_helpers.data_preproc_functions import load_preproc_data_compas
 from aif360.algorithms.preprocessing.optim_preproc_helpers.data_preproc_functions import load_preproc_data_adult
+from aif360.algorithms.preprocessing.optim_preproc_helpers.data_preproc_functions import load_preproc_data_german
 from sklearn.preprocessing import StandardScaler  
 from sklearn.linear_model import LogisticRegression
 from sklearn import svm
 from aif360.algorithms.preprocessing.reweighing import Reweighing
 from aif360.metrics import ClassificationMetric
 from aif360.metrics import BinaryLabelDatasetMetric
+from aif360.metrics import utils
 
 # set random seed for repeatable results
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
+import pandas as pd
 np.random.seed(0)
 
 
@@ -38,6 +40,7 @@ def fit_classifier(classifier, weights, lambda_values, X_train, y_train, X_test,
         equal_opp_list: Equal Opportunity difference for each model
         stat_parity_list: Statistical Parity difference for each model
     '''
+
     accuracy_list = []
     equal_opp_list = []
     stat_parity_list = []
@@ -86,8 +89,9 @@ def plot_analysis(filename, lambda_values, accuracy_list, fairness_metric_list, 
     ax2.set_yticks(np.linspace(ax2.get_yticks()[0], ax2.get_yticks()[-1], 8))
     ax.set_yticklabels(['{:.3f}'.format(float(t)) for t in ax.get_yticks()])
     ax2.set_yticklabels(['{:.3f}'.format(float(t)) for t in ax2.get_yticks()])
-    plt.savefig(f'{filename}.png')    
-    plt.show()
+    plt.savefig(f'{filename}.png', bbox_inches='tight')    
+    # plt.show()
+    plt.clf()
 
 
 def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_groups, privileged_groups):
@@ -106,6 +110,7 @@ def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_g
         equal_opp_list: Equal Opportunity difference for each model
         stat_parity_list: Statistical Parity difference for each model
     '''
+
     accuracy_list = []
     equal_opp_list = []
     stat_parity_list = []
@@ -149,13 +154,42 @@ def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_g
 
 if __name__ == "__main__":
 
+    #******************
+    # Step 0 - Choose Dataset and classifier type
+    data_choice = "adult"
+    classifier_choice = "Logistic Regression"
+
     #*******************    
-    # Step 1 - Get data
+    # Step 1 - Get data and plot distribution
     privileged_groups = [{'sex': 1}]
     unprivileged_groups = [{'sex': 0}]
-    dataset_orig = load_preproc_data_adult(['sex'])
-    dataset_orig = load_preproc_data_compas(['sex'])
+    if data_choice == "adult":
+        dataset_orig = load_preproc_data_adult(['sex'])
+    elif data_choice == "compas":
+        dataset_orig = load_preproc_data_compas(['sex'])
+    else:
+        dataset_orig = load_preproc_data_german(['sex'])
     print(dataset_orig)
+    
+    female_filter = (dataset_orig.features[:,1])==0
+    male_filter = (dataset_orig.features[:,1])==1
+    female_1 = np.count_nonzero(dataset_orig.labels[female_filter]==1)
+    female_0 = np.count_nonzero(dataset_orig.labels[female_filter]==0)
+    male_1 = np.count_nonzero(dataset_orig.labels[male_filter]==1)
+    male_0 = np.count_nonzero(dataset_orig.labels[male_filter]==0)
+
+    df = pd.DataFrame({
+    'Sex': ['Male', 'Female'],
+    'Income > $50,000': [male_0, female_0],
+    'Income <= $50,000': [male_1, female_1]
+    })
+    sns.set(font_scale=2)
+    fig, ax1 = plt.subplots(figsize=(10, 10))
+    tidy = df.melt(id_vars='Sex').rename(columns=str.title)
+    sns.barplot(x='Sex', y='Value', hue='Variable', data=tidy, ax=ax1)
+    sns.despine(fig)
+    plt.savefig(f'{data_choice}_distribution.png', bbox_inches='tight')    
+    # plt.show()
 
     #*******************
     # Step 2 - Split into train and test and normalise
@@ -169,44 +203,40 @@ if __name__ == "__main__":
     y_test = test.labels.ravel()
     test_pred = test.copy()
 
+    exit()
     #*******************
     # Step 3 - Train machine Learning classifier and plot results
-    # lambda_values = np.logspace(0,10, num=50)
-    lambda_values = np.logspace(0,2, num=10)
-    # accuracy_list, equal_opp_list, stat_parity_list = fit_classifier("SVM", train.instance_weights, lambda_values, 
-    #                                                 X_train, y_train, X_test, y_test, test_pred)
-    # plot_analysis("unweighted_SVM_equal", lambda_values, accuracy_list, equal_opp_list, "Equal Opport. Difference")
-    # plot_analysis("unweighted_SVM_stat", lambda_values, accuracy_list, stat_parity_list, "Statistical Parity")
+    lambda_values = np.logspace(0,10, num=50)
+    # lambda_values = np.logspace(0,2, num=50)
+    accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
+                                                    X_train, y_train, X_test, y_test, test_pred)
+    plot_analysis(f'{data_choice}_unweighted_{classifier_choice}_equal', lambda_values, accuracy_list, equal_opp_list, "Equal Opport. Difference")
+    plot_analysis(f'{data_choice}_unweighted_{classifier_choice}_stat', lambda_values, accuracy_list, stat_parity_list, "Statistical Parity")
 
     #*******************
     # Step 5 - Perform Reweighing, fit classifiers and plot results
     RW = Reweighing(unprivileged_groups=unprivileged_groups, privileged_groups=privileged_groups)
     train = RW.fit_transform(train)
-    # accuracy_list, equal_opp_list, stat_parity_list = fit_classifier("SVM", train.instance_weights, lambda_values, 
-    #                                                 X_train, y_train, X_test, y_test, test_pred)
-    # plot_analysis("weighted_SVM_equal", lambda_values, accuracy_list, equal_opp_list, "Equal Opport. Difference")
-    # plot_analysis("weighted_SVM_stat", lambda_values, accuracy_list, stat_parity_list, "Statistical Parity")
+    accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
+                                                    X_train, y_train, X_test, y_test, test_pred)
+    plot_analysis(f'{data_choice}_weighted_{classifier_choice}_equal', lambda_values, accuracy_list, equal_opp_list, "Equal Opport. Difference")
+    plot_analysis(f'{data_choice}_weighted_{classifier_choice}_stat', lambda_values, accuracy_list, stat_parity_list, "Statistical Parity")
     # Plot weight values after re-weighting samples
     # ax = sns.scatterplot(x=np.arange(len(train.instance_weights)),y=train.instance_weights,hue=y_train,
     #                     s=25)
-    # ax = sns.distplot(train.instance_weights, kde=False)
-    ax = sns.distplot(train.features.ravel(), kde=False)
+    ax = sns.distplot(train.instance_weights, kde=False)
     ax.set_xlabel(r'Range of Weight')
     ax.set_ylabel('Frequency')
-    plt.savefig('reweighted.png')    
-    plt.show()
-    custom_weights = []
-    for sample in X_train:
-        print(sample)
-        break
-    exit()
+    plt.savefig(f'{data_choice}_reweighted.png', bbox_inches='tight')    
+    # plt.show()
+    plt.clf()
 
     #*******************
-    # Step 6 - Perform 5 random  train/test splits and report results
-    accuracy_list, equal_opp_list, stat_parity_list = k_fold_statistics(10, "SVM", 10, dataset_orig, unprivileged_groups, privileged_groups)
+    # Step 6 - Perform k random  train/test splits and report results
+    accuracy_list, equal_opp_list, stat_parity_list = k_fold_statistics(10, classifier_choice, 10, dataset_orig, unprivileged_groups, privileged_groups)
     ax = sns.distplot(equal_opp_list, bins=40)
     ax.set_xlabel(r'Equality of Opportunity Difference')
     ax.set_ylabel('Frequency')
-    plt.savefig('kfold.png')    
-    plt.show()
-
+    plt.savefig(f'{data_choice}_{classifier_choice}_kfold.png', bbox_inches='tight')    
+    # plt.show()
+    plt.clf()
