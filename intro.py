@@ -9,6 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn import svm
 from aif360.algorithms.preprocessing.reweighing import Reweighing
+from aif360.algorithms.preprocessing.lfr import LFR
 from aif360.metrics import ClassificationMetric
 from aif360.metrics import BinaryLabelDatasetMetric
 from aif360.metrics import utils
@@ -245,11 +246,35 @@ if __name__ == "__main__":
 
     #*******************
     # Step 5 - Perform Reweighing, fit classifiers and plot results
-    RW = Reweighing(unprivileged_groups=unprivileged_groups, privileged_groups=privileged_groups)
-    train = RW.fit_transform(train)
+    # RW = Reweighing(unprivileged_groups=unprivileged_groups, privileged_groups=privileged_groups)
+    # train = RW.fit_transform(train)
+    # accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
+    #                                                 X_train, y_train, X_test, y_test, test_pred)
+    # plot_analysis(f'{data_choice}_weighted_{classifier_choice}', lambda_values, accuracy_list, equal_opp_list, 
+    #                 "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
+    # ax = sns.distplot(train.instance_weights, kde=False)
+    # ax.set_xlabel(r'Range of Weight')
+    # ax.set_ylabel('Frequency')
+    # plt.savefig(f'{data_choice}_reweighted.png', bbox_inches='tight')    
+    # # plt.show()
+    # plt.clf()
+
+    # Step 5 - Perform Reweighing, fit classifiers and plot results
+    LFR_model = LFR(unprivileged_groups=unprivileged_groups, privileged_groups=privileged_groups)
+    train = LFR_model.fit_transform(train)
+    test = LFR_model.transform(test)
+    print(train)
+    print(train.features)
+    print(test)
+    print(test.features)
+    print(train.labels)
+    X_train = (train.features)
+    y_train = train.labels.ravel()
+    X_test = (test.features)
+    y_test = test.labels.ravel()    
     accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
                                                     X_train, y_train, X_test, y_test, test_pred)
-    plot_analysis(f'{data_choice}_weighted_{classifier_choice}', lambda_values, accuracy_list, equal_opp_list, 
+    plot_analysis(f'{data_choice}_LFR_{classifier_choice}', lambda_values, accuracy_list, equal_opp_list, 
                     "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
     ax = sns.distplot(train.instance_weights, kde=False)
     ax.set_xlabel(r'Range of Weight')
@@ -257,6 +282,7 @@ if __name__ == "__main__":
     plt.savefig(f'{data_choice}_reweighted.png', bbox_inches='tight')    
     # plt.show()
     plt.clf()
+
 
     #*******************
     # Step 6 - Perform k random  train/test splits and report results
