@@ -107,7 +107,7 @@ def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_g
         metric = ClassificationMetric(test, test_pred, unprivileged_groups=unprivileged_groups,
                                         privileged_groups=privileged_groups)
         print("----------------")
-        print(f"Split {k}/{k_folds}")
+        print("Split {}/{}".format(k, k_folds))
         print("Equal opportunity:", "{0:.3f}".format(metric.equal_opportunity_difference()))
         print("Statistical parity:", "{0:.3f}".format(metric.statistical_parity_difference()))
         print("Accuracy:", "{0:.3f}".format(metric.accuracy()))
@@ -118,10 +118,10 @@ def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_g
     accuracy_list = np.array(accuracy_list)
     equal_opp_list = np.array(equal_opp_list)
     stat_parity_list = np.array(stat_parity_list)
-    print(f'The mean accuracy for lambda={lambda_value:.3f} is:')
-    print(f'Mean Accuracy: {np.mean(accuracy_list):.3f}, Std: {np.std(accuracy_list):.3f}')
-    print(f'Mean Equal Opportunity: {np.mean(equal_opp_list):.3f}, Std: {np.std(equal_opp_list):.3f}') 
-    print(f'Mean Statistical Parity: {np.mean(stat_parity_list):.3f}, Std: {np.std(stat_parity_list):.3f}')
+    print('The mean accuracy for lambda={0:.3f} is:'.format(lambda_value))
+    print('Mean Accuracy: {0:.3f}, Std: {0:.3f}'.format(np.mean(accuracy_list), np.std(accuracy_list)))
+    print('Mean Equal Opportunity: {0:.3f}, Std: {0:.3f}'.format(np.mean(equal_opp_list), np.std(equal_opp_list))) 
+    print('Mean Statistical Parity: {0:.3f}, Std: {0:.3f}'.format(np.mean(stat_parity_list), np.std(stat_parity_list)))
     
     return accuracy_list, equal_opp_list, stat_parity_list
 
@@ -156,7 +156,7 @@ def plot_analysis(filename, lambda_values, accuracy_list, fairness_metric_list_1
     ax2.set_yticks(np.linspace(ax2.get_yticks()[0], ax2.get_yticks()[-1], 8))
     ax.set_yticklabels(['{:.3f}'.format(float(t)) for t in ax.get_yticks()])
     ax2.set_yticklabels(['{:.3f}'.format(float(t)) for t in ax2.get_yticks()])
-    plt.savefig(f'{filename}.png', bbox_inches='tight')    
+    plt.savefig('{}.png'.format(filename), bbox_inches='tight')    
     # plt.show()
     plt.clf()
 
@@ -199,7 +199,7 @@ def plot_distribution(dataset_orig, data_choice):
     tidy = df.melt(id_vars='Sex').rename(columns=str.title)
     sns.barplot(x='Sex', y='Value', hue='Variable', data=tidy, ax=ax1)
     sns.despine(fig)
-    plt.savefig(f'{data_choice}_distribution.png', bbox_inches='tight')    
+    plt.savefig('{}_distribution.png'.format(data_choice), bbox_inches='tight')    
     # plt.show()
     plt.clf()
 
@@ -240,7 +240,7 @@ if __name__ == "__main__":
         lambda_values = np.logspace(0,3, num=50)
     accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
                                                     X_train, y_train, X_test, y_test, test_pred)
-    plot_analysis(f'{data_choice}_unweighted_{classifier_choice}', lambda_values, accuracy_list, equal_opp_list,
+    plot_analysis('{}_unweighted_{}'.format(data_choice, classifier_choice), lambda_values, accuracy_list, equal_opp_list,
                     "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
 
     #*******************
@@ -249,12 +249,12 @@ if __name__ == "__main__":
     train = RW.fit_transform(train)
     accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
                                                     X_train, y_train, X_test, y_test, test_pred)
-    plot_analysis(f'{data_choice}_weighted_{classifier_choice}', lambda_values, accuracy_list, equal_opp_list, 
+    plot_analysis('{}_weighted_{}'.format(data_choice,classifier_choice), lambda_values, accuracy_list, equal_opp_list, 
                     "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
     ax = sns.distplot(train.instance_weights, kde=False)
     ax.set_xlabel(r'Range of Weight')
     ax.set_ylabel('Frequency')
-    plt.savefig(f'{data_choice}_reweighted.png', bbox_inches='tight')    
+    plt.savefig('{}_reweighted.png'.format(data_choice), bbox_inches='tight')    
     # plt.show()
     plt.clf()
 
@@ -264,6 +264,6 @@ if __name__ == "__main__":
     ax = sns.distplot(equal_opp_list, bins=40)
     ax.set_xlabel(r'Equality of Opportunity Difference')
     ax.set_ylabel('Frequency')
-    plt.savefig(f'{data_choice}_{classifier_choice}_kfold.png', bbox_inches='tight')    
+    plt.savefig('{}_{}_kfold.png'.format(data_choice, classifier_choice), bbox_inches='tight')    
     # plt.show()
     plt.clf()
