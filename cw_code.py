@@ -1,3 +1,12 @@
+'''
+The code was developed and tested on Python version 3.7.6 using the aif360 library. 
+It is backwards compatible with Python 3.5 however the following libraries need
+ to be available for the code to run and produce the required plots:
+
+- matplotlib
+- seaborn
+'''
+
 #ignore deprection warnings:
 import warnings
 warnings.simplefilter("ignore", category=FutureWarning) 
