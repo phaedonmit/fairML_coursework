@@ -107,7 +107,7 @@ def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_g
         metric = ClassificationMetric(test, test_pred, unprivileged_groups=unprivileged_groups,
                                         privileged_groups=privileged_groups)
         print("----------------")
-        print(f'Split {k}/{k_folds}')
+        print(f"Split {k}/{k_folds}")
         print("Equal opportunity:", "{0:.3f}".format(metric.equal_opportunity_difference()))
         print("Statistical parity:", "{0:.3f}".format(metric.statistical_parity_difference()))
         print("Accuracy:", "{0:.3f}".format(metric.accuracy()))
