@@ -78,7 +78,7 @@ def fit_classifier(classifier, weights, lambda_values, X_train, y_train, X_test,
     return accuracy_list, equal_opp_list, stat_parity_list
 
 
-def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_groups, privileged_groups):
+def k_fold_statistics(k_folds, classifier, lambda_values, dataset, unprivileged_groups, privileged_groups):
     '''
     Function to fit classifier to k number of random train/test splits
     
@@ -100,23 +100,38 @@ def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_g
     stat_parity_list = []
 
     for k in range(k_folds):
-        train, test = dataset_orig.split([0.7], shuffle=True)
+        train, test = dataset_orig.split([0.8], shuffle=True)
+        train, validation = train.split([0.8], shuffle=True)
         scale_orig = StandardScaler()
         X_train = scale_orig.fit_transform(train.features)
         y_train = train.labels.ravel()
         X_test = scale_orig.transform(test.features)
-        y_test = test.labels.ravel()
+        y_test = validation.labels.ravel()
+        X_valid = scale_orig.transform(validation.features)
+        y_valid = test.labels.ravel()        
         test_pred = test.copy() 
+        valid_pred = validation.copy()
 
         RW = Reweighing(unprivileged_groups=unprivileged_groups, privileged_groups=privileged_groups)
-        train = RW.fit_transform(train)
+        
+        best_mean_statistic = 0
+        
+        # fit all candidate models
+        for lambda_value in lambda_values:
+            train = RW.fit_transform(train)
+            if classifier == "Logistic Regression":
+                learner = LogisticRegression(solver='liblinear', random_state=1, penalty='l2', C=1/lambda_value)  
+            else:
+                learner = svm.SVC(C=1/lambda_value)  
+            learner.fit(X_train,y_train, sample_weight=train.instance_weights)
+            valid_pred.labels = learner.predict(X_valid)
+            metric = ClassificationMetric(validation, valid_pred, unprivileged_groups=unprivileged_groups,
+                                        privileged_groups=privileged_groups)
+            mean_statistic = (1-abs(metric.equal_opportunity_difference())+metric.accuracy())/2
+            if mean_statistic > best_mean_statistic:
+                best_learner = learner
 
-        if classifier == "Logistic Regression":
-            learner = LogisticRegression(solver='liblinear', random_state=1, penalty='l2', C=1/lambda_value)  
-        else:
-            learner = svm.SVC(C=1/lambda_value)  
-        learner.fit(X_train,y_train, sample_weight=train.instance_weights)
-        test_pred.labels = learner.predict(X_test)
+        test_pred.labels = best_learner.predict(X_test)
         metric = ClassificationMetric(test, test_pred, unprivileged_groups=unprivileged_groups,
                                         privileged_groups=privileged_groups)
         print("----------------")
@@ -131,10 +146,11 @@ def k_fold_statistics(k_folds, classifier, lambda_value, dataset, unprivileged_g
     accuracy_list = np.array(accuracy_list)
     equal_opp_list = np.array(equal_opp_list)
     stat_parity_list = np.array(stat_parity_list)
-    print('The mean accuracy for lambda={0:.3f} is:'.format(lambda_value))
-    print('Mean Accuracy: {0:.3f}, Std: {0:.3f}'.format(np.mean(accuracy_list), np.std(accuracy_list)))
-    print('Mean Equal Opportunity: {0:.3f}, Std: {0:.3f}'.format(np.mean(equal_opp_list), np.std(equal_opp_list))) 
-    print('Mean Statistical Parity: {0:.3f}, Std: {0:.3f}'.format(np.mean(stat_parity_list), np.std(stat_parity_list)))
+    print("ACCURACY --- ", accuracy_list)
+    print('The mean statistics for {} folds is:'.format(k_folds))
+    print("Mean Accuracy: {0:.3f},".format(np.mean(accuracy_list)), "Std: {0:.3f}".format(np.std(accuracy_list)))
+    print("Mean Equal Opportunity: {0:.3f},".format(np.mean(equal_opp_list)), "Std: {0:.3f}".format( np.std(equal_opp_list))) 
+    print("Mean Statistical Parity: {0:.3f},".format(np.mean(stat_parity_list)), "Std: {0:.3f}".format(np.std(stat_parity_list)))
     
     return accuracy_list, equal_opp_list, stat_parity_list
 
@@ -278,7 +294,11 @@ if __name__ == "__main__":
 
     #*******************
     # Step 6 - Perform k random  train/test splits and report results
-    accuracy_list, equal_opp_list, stat_parity_list = k_fold_statistics(10, classifier_choice, 10, dataset_orig, unprivileged_groups, privileged_groups)
+    if classifier_choice == "Logistic Regression":
+        lambda_values = np.logspace(0,10, num=10)
+    else:
+        lambda_values = np.logspace(0,3, num=10)    
+    accuracy_list, equal_opp_list, stat_parity_list = k_fold_statistics(10, classifier_choice, lambda_values, dataset_orig, unprivileged_groups, privileged_groups)
     if FLAG_PLOTS:
         ax = sns.distplot(equal_opp_list, bins=40)
         ax.set_xlabel(r'Equality of Opportunity Difference')
