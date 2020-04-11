@@ -146,7 +146,6 @@ def k_fold_statistics(k_folds, classifier, lambda_values, dataset, unprivileged_
     accuracy_list = np.array(accuracy_list)
     equal_opp_list = np.array(equal_opp_list)
     stat_parity_list = np.array(stat_parity_list)
-    print("ACCURACY --- ", accuracy_list)
     print('The mean statistics for {} folds is:'.format(k_folds))
     print("Mean Accuracy: {0:.3f},".format(np.mean(accuracy_list)), "Std: {0:.3f}".format(np.std(accuracy_list)))
     print("Mean Equal Opportunity: {0:.3f},".format(np.mean(equal_opp_list)), "Std: {0:.3f}".format( np.std(equal_opp_list))) 
