@@ -7,6 +7,9 @@ It is backwards compatible with Python 3.5 however the following libraries need
 - seaborn
 '''
 
+# Suppress plotting 
+FLAG_PLOTS = False
+
 #ignore deprection warnings:
 import warnings
 warnings.simplefilter("ignore", category=FutureWarning) 
@@ -24,8 +27,9 @@ from aif360.metrics import utils
 
 # set random seed for repeatable results
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns; sns.set()
+if FLAG_PLOTS:
+    import matplotlib.pyplot as plt
+    import seaborn as sns; sns.set()
 import pandas as pd
 np.random.seed(0)
 
@@ -202,15 +206,17 @@ def plot_distribution(dataset_orig, data_choice):
         'Sex': ['Male', 'Female'],
         'Did recid. (Label 1)': [male_1, female_1],
         'No recid. (Label 0)': [male_0, female_0]
-        })        
-    sns.set(font_scale=2)
-    fig, ax1 = plt.subplots(figsize=(10, 10))
-    tidy = df.melt(id_vars='Sex').rename(columns=str.title)
-    sns.barplot(x='Sex', y='Value', hue='Variable', data=tidy, ax=ax1)
-    sns.despine(fig)
-    plt.savefig('{}_distribution.png'.format(data_choice), bbox_inches='tight')    
-    # plt.show()
-    plt.clf()
+        })     
+
+    if FLAG_PLOTS:       
+        sns.set(font_scale=2)
+        fig, ax1 = plt.subplots(figsize=(10, 10))
+        tidy = df.melt(id_vars='Sex').rename(columns=str.title)
+        sns.barplot(x='Sex', y='Value', hue='Variable', data=tidy, ax=ax1)
+        sns.despine(fig)
+        plt.savefig('{}_distribution.png'.format(data_choice), bbox_inches='tight')    
+        # plt.show()
+        plt.clf()
 
 
 
@@ -220,7 +226,8 @@ if __name__ == "__main__":
     # Step 0 - Choose Dataset and classifier type
     data_choice = "adult" # "compas" or "adult"
     classifier_choice = "Logistic Regression" # "SVM" or "Logistic Regression"
-
+    flag_plot = False
+    
     #*******************    
     # Step 1 - Get data and plot distribution
     privileged_groups = [{'sex': 1}]
@@ -249,8 +256,9 @@ if __name__ == "__main__":
         lambda_values = np.logspace(0,3, num=50)
     accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
                                                     X_train, y_train, X_test, y_test, test_pred)
-    plot_analysis('{}_unweighted_{}'.format(data_choice, classifier_choice), lambda_values, accuracy_list, equal_opp_list,
-                    "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
+    if FLAG_PLOTS:
+        plot_analysis('{}_unweighted_{}'.format(data_choice, classifier_choice), lambda_values, accuracy_list, equal_opp_list,
+                        "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
 
     #*******************
     # Step 5 - Perform Reweighing, fit classifiers and plot results
@@ -258,21 +266,23 @@ if __name__ == "__main__":
     train = RW.fit_transform(train)
     accuracy_list, equal_opp_list, stat_parity_list = fit_classifier(classifier_choice, train.instance_weights, lambda_values, 
                                                     X_train, y_train, X_test, y_test, test_pred)
-    plot_analysis('{}_weighted_{}'.format(data_choice,classifier_choice), lambda_values, accuracy_list, equal_opp_list, 
-                    "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
-    ax = sns.distplot(train.instance_weights, kde=False)
-    ax.set_xlabel(r'Range of Weight')
-    ax.set_ylabel('Frequency')
-    plt.savefig('{}_reweighted.png'.format(data_choice), bbox_inches='tight')    
-    # plt.show()
-    plt.clf()
+    if FLAG_PLOTS:
+        plot_analysis('{}_weighted_{}'.format(data_choice,classifier_choice), lambda_values, accuracy_list, equal_opp_list, 
+                        "Equal Opport. Difference", stat_parity_list, "Statistical Parity")
+        ax = sns.distplot(train.instance_weights, kde=False)
+        ax.set_xlabel(r'Range of Weight')
+        ax.set_ylabel('Frequency')
+        plt.savefig('{}_reweighted.png'.format(data_choice), bbox_inches='tight')    
+        # plt.show()
+        plt.clf()
 
     #*******************
     # Step 6 - Perform k random  train/test splits and report results
     accuracy_list, equal_opp_list, stat_parity_list = k_fold_statistics(10, classifier_choice, 10, dataset_orig, unprivileged_groups, privileged_groups)
-    ax = sns.distplot(equal_opp_list, bins=40)
-    ax.set_xlabel(r'Equality of Opportunity Difference')
-    ax.set_ylabel('Frequency')
-    plt.savefig('{}_{}_kfold.png'.format(data_choice, classifier_choice), bbox_inches='tight')    
-    # plt.show()
-    plt.clf()
+    if FLAG_PLOTS:
+        ax = sns.distplot(equal_opp_list, bins=40)
+        ax.set_xlabel(r'Equality of Opportunity Difference')
+        ax.set_ylabel('Frequency')
+        plt.savefig('{}_{}_kfold.png'.format(data_choice, classifier_choice), bbox_inches='tight')    
+        # plt.show()
+        plt.clf()
